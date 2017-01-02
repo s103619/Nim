@@ -11,6 +11,8 @@ open System.Windows.Forms
 open System.Drawing 
 open System.Text.RegularExpressions
 
+System.IO.Directory.SetCurrentDirectory __SOURCE_DIRECTORY__;;
+
 // An asynchronous event queue kindly provided by Don Syme 
 type AsyncEventQueue<'T>() = 
     let mutable cont = None 
@@ -37,10 +39,9 @@ type AsyncEventQueue<'T>() =
 
 // The window part
 let window =
-  new Form(Text="Web Source Length", Size=Size(500, 500))
+  new Form(Text="Nim", Size=Size(500, 500))
 
-let ansBox =
-  new TextBox(Location=Point(150,150),Size=Size(200,25))
+//let ansBox = new TextBox(Location=Point(150,150),Size=Size(200,25))
 
 let startButton =
   new Button(Location=Point(50,65),MinimumSize=Size(100,50),
@@ -55,14 +56,12 @@ let clearButton =
               MaximumSize=Size(100,50),Text="CLEAR")
 
 let cancelButton =
-  new Button(Location=Point(500,65),MinimumSize=Size(100,50),
-              MaximumSize=Size(100,50),Text="CANCEL")
+  new Button(Location=Point(500,65),MinimumSize=Size(100,50), MaximumSize=Size(100,50),Text="CANCEL")
 
+let combo = new ComboBox(Location=Point(100,35), DataSource=[|"http://www2.compute.dtu.dk/~mire/02257/nim1.game";"http://www2.compute.dtu.dk/~mire/02257/nim2.game";"http://www2.compute.dtu.dk/~mire/02257/nim3.game";"http://www2.compute.dtu.dk/~mire/02257/nim4.game"|], Width=300)
 
-(*
-let jens =
-    new Image(Image.FromFile(@"hatteland.png"))
-*)
+let mutable buttons = Array.empty
+
 let disable bs = 
     for b in [startButton;clearButton;cancelButton;diffButton] do 
         b.Enabled  <- true
@@ -78,7 +77,9 @@ type Message = | Start of string * bool | Clear | Cancel | Web of string | Error
 let ev = AsyncEventQueue()
 let optimal = true
 let rec ready() = 
-  async {ansBox.Text <- ""
+  async {
+         //ansBox.Text <- ""
+         Seq.iter(fun x -> window.Controls.Remove x) buttons
 
          disable [cancelButton]
          let! msg = ev.Receive()
@@ -88,7 +89,7 @@ let rec ready() =
          | _         -> failwith("ready: unexpected message")}
   
 and loading(url) =
-  async {ansBox.Text <- "Downloading"
+  async {//ansBox.Text <- "Downloading"
          use ts = new CancellationTokenSource()
 
           // start the load
@@ -105,7 +106,19 @@ and loading(url) =
          let! msg = ev.Receive()
          match msg with
          | Web html ->
-             let ans = System.String.Concat([ for x in Regex("\d+").Matches(html) -> x.Value + " " ])
+             let l = [ for x in Regex("\d+").Matches(html) -> x.Value ]
+             let lulz = List.map (fun x -> if int x <= 9 && int x > 0 then x else string 9) l
+             let ans = System.String.Concat(lulz)
+
+             let buttonPos text x y = new Button(Text=text, Top=(x+100), Left=y, Size=Size(20,20), BackColor=Color.Aqua)
+
+             buttons <- Seq.toArray(seq{ for y in 1..lulz.Length -> (buttonPos "-" (y*50) (1300)) } |> Seq.cast<Control>)
+             let pb = new PictureBox()
+             pb.Image <- Image.FromFile("hatteland.png")
+             pb.SizeMode <- PictureBoxSizeMode.AutoSize
+             window.Controls.Add(pb)
+             window.Controls.AddRange buttons
+
              return! finished(ans)
          | Error   -> return! finished("Error")
          | Cancel  -> ts.Cancel()
@@ -113,7 +126,7 @@ and loading(url) =
          | _       -> failwith("loading: unexpected message")}
 
 and cancelling() =
-  async {ansBox.Text <- "Cancelling"
+  async {//ansBox.Text <- "Cancelling"
          
          disable [startButton; diffButton; clearButton; cancelButton]
          let! msg = ev.Receive()
@@ -123,7 +136,7 @@ and cancelling() =
          | _    ->  failwith("cancelling: unexpected message")}
 
 and finished(s) =
-  async {ansBox.Text <- s
+  async {//ansBox.Text <- s
          
          disable [startButton; diffButton; cancelButton]
          let! msg = ev.Receive()
@@ -132,17 +145,28 @@ and finished(s) =
          | _     ->  failwith("finished: unexpected message")}
 
 // Initialization
-window.Controls.Add ansBox
+//window.Controls.Add ansBox
 window.Controls.Add startButton
 window.Controls.Add diffButton
 window.Controls.Add clearButton
 window.Controls.Add cancelButton
+window.Controls.Add combo
 
+(*
+for i in 0 .. buttons.Length - 1 do
+    window.Controls.Add new Button(Location=Point(500,65),MinimumSize=Size(100,50), MaximumSize=Size(100,50),Text="CANCEL")
+
+    let array1 = Array.create 10 ""
+    for i in 0 .. array1.Length - 1 do
+        Array.set array1 i (i.ToString())
+*)
 let games = ["http://www2.compute.dtu.dk/~mire/02257/nim1.game";"http://www2.compute.dtu.dk/~mire/02257/nim2.game";"http://www2.compute.dtu.dk/~mire/02257/nim3.game";"http://www2.compute.dtu.dk/~mire/02257/nim4.game"]
-let hat = List.item(System.Random().Next(games.Length)) games
+let rnd = System.Random()
+printfn "%s" (rnd.ToString())
+let hat = List.item(rnd.Next(games.Length)) games
 
-startButton.Click.Add (fun _ -> ev.Post (Start (hat, true)))
-diffButton.Click.Add (fun _ -> ev.Post (Start (hat, false)))
+startButton.Click.Add (fun _ -> ev.Post (Start (combo.SelectedItem.ToString(), true)))
+diffButton.Click.Add (fun _ -> ev.Post (Start (combo.SelectedItem.ToString(), false)))
 clearButton.Click.Add (fun _ -> ev.Post Clear)
 cancelButton.Click.Add (fun _ -> ev.Post Cancel)
 
