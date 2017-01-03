@@ -126,6 +126,7 @@ and loading(url) =
              window.Controls.Add(pb)
              window.Controls.AddRange buttons
              window.Controls.AddRange labels
+//             let mutable lst = Array.empty
 
              //return! finished("splat")
              let arr = List.toArray lulz

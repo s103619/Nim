@@ -53,9 +53,10 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="AssemblyInfo.fs" />
-    <None Include="Program.fsx" />
+    <None Include="Program2.fsx" />
     <None Include="App.config" />
     <Compile Include="AsyncEventQueue.fs" />
+    <None Include="Program.fsx" />
   </ItemGroup>
   <PropertyGroup>
     <MinimumVisualStudioVersion Condition="'$(MinimumVisualStudioVersion)' == ''">11</MinimumVisualStudioVersion>
