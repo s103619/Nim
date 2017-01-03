@@ -13,29 +13,8 @@ open System.Text.RegularExpressions
 
 System.IO.Directory.SetCurrentDirectory __SOURCE_DIRECTORY__;;
 
-// An asynchronous event queue kindly provided by Don Syme 
-type AsyncEventQueue<'T>() = 
-    let mutable cont = None 
-    let queue = System.Collections.Generic.Queue<'T>()
-    let tryTrigger() = 
-        match queue.Count, cont with 
-        | _, None -> ()
-        | 0, _ -> ()
-        | _, Some d -> 
-            cont <- None
-            d (queue.Dequeue())
-
-    let tryListen(d) = 
-        if cont.IsSome then invalidOp "multicast not allowed"
-        cont <- Some d
-        tryTrigger()
-
-    member x.Post msg = queue.Enqueue msg; tryTrigger()
-    member x.Receive() = 
-        Async.FromContinuations (fun (cont,econt,ccont) -> 
-            tryListen cont)
-
-
+#r @"AsyncEventQueue.dll"
+open AsyncEventQueue
 
 // The window part
 let window =
@@ -43,13 +22,13 @@ let window =
 
 //let ansBox = new TextBox(Location=Point(150,150),Size=Size(200,25))
 
-let startButton =
-  new Button(Location=Point(50,65),MinimumSize=Size(100,50),
-              MaximumSize=Size(100,50),Text="HARD")
-
-let diffButton =
-  new Button(Location=Point(200,65),MinimumSize=Size(100,50),
+let easyButton = 
+    new Button(Location=Point(50,65),MinimumSize=Size(100,50),
               MaximumSize=Size(100,50),Text="EASY")
+
+let hardButton =
+  new Button(Location=Point(200,65),MinimumSize=Size(100,50),
+              MaximumSize=Size(100,50),Text="HARD")
 
 let clearButton =
   new Button(Location=Point(350,65),MinimumSize=Size(100,50),
@@ -64,27 +43,44 @@ let cancelButton =
 
 let combo = new ComboBox(Location=Point(100,35), DataSource=[|"http://www2.compute.dtu.dk/~mire/02257/nim1.game";"http://www2.compute.dtu.dk/~mire/02257/nim2.game";"http://www2.compute.dtu.dk/~mire/02257/nim3.game";"http://www2.compute.dtu.dk/~mire/02257/nim4.game"|], Width=300)
 
+let mutable labels = Array.empty
+
 let mutable buttons = Array.empty
 
+let getOptimal arr =
+    let calc_m arr = Array.fold (fun x m -> x ^^^ m) 0 arr
+    let maxIndex arr = Array.findIndex (fun x -> x = Array.max arr) arr
+    let m = calc_m arr
+    if m <> 0 then
+        for i = 0 to arr.Length-1 do
+            let tmp = arr.[i] ^^^ m
+            if tmp < arr.[i] then
+                arr.[i] <- tmp
+    else
+        let maxI = maxIndex arr
+        arr.[maxI] <- arr.[maxI]-1
+
+
 let disable bs = 
-    for b in [startButton;clearButton;cancelButton;diffButton] do 
+    for b in [easyButton;clearButton;cancelButton;hardButton;endTurnButton] do 
         b.Enabled  <- true
     for (b:Button) in bs do 
         b.Enabled  <- false
 
 // An enumeration of the possible events 
-type Message = | Start of string * bool | Clear | Cancel | Web of string | Error | Cancelled 
+type Message = | Start of string * bool | Next | Clear | Cancel | Web of string | Error | Cancelled 
 
 //exception UnexpectedMessage
 
 // The dialogue automaton 
 let ev = AsyncEventQueue()
-let optimal = true
 let rec ready() = 
   async {Seq.iter(fun x -> window.Controls.Remove x) buttons
+         Seq.iter(fun x -> window.Controls.Remove x) labels
 
          disable [cancelButton]
          endTurnButton.Visible <- false
+         combo.Enabled <- true
          let! msg = ev.Receive()
          match msg with
          | Start (url, diff) -> return! loading(url)
@@ -94,7 +90,7 @@ let rec ready() =
 // Sets up the board from chosen url
 and loading(url) =
   async {use ts = new CancellationTokenSource()
-
+         combo.Enabled <- false
           // start the load
          Async.StartWithContinuations
              (async { let webCl = new WebClient()
@@ -105,59 +101,56 @@ and loading(url) =
               (fun _ -> ev.Post Cancelled),
               ts.Token)
 
-         disable [startButton; diffButton; clearButton]
+         disable [easyButton; hardButton; clearButton;endTurnButton]
          endTurnButton.Visible <- true
          let! msg = ev.Receive()
          match msg with
          | Web html ->
-             let l = [ for x in Regex("\d+").Matches(html) -> x.Value ]
-             let lulz = List.map (fun x -> if int x <= 9 && int x > 0 then x else string 9) l
+             let l = [ for x in Regex("\d+").Matches(html) -> int x.Value ]
+             let lulz = List.map (fun x -> if x <= 9 && x > 0 then x else 9) l
              //let ans = System.String.Concat(lulz)
 
              let buttonPos text x y = new Button(Text=text, Top=(x+100), Left=y, Size=Size(20,20), BackColor=Color.Aqua)
+             let labelPos text x y = new Label(Text=text, Top=(x+100), Left=y, AutoSize=true)
              
              buttons <- Seq.toArray(seq{ for y in 1..lulz.Length -> (buttonPos "-" (y*50) (1300)) } |> Seq.cast<Control>)
+             labels <- Seq.toArray(seq{ for y in 1..lulz.Length -> (labelPos (string lulz.[y-1]) (y*50) (1200)) } |> Seq.cast<Control>)
+
              endTurnButton.Top<- (Array.last buttons).Top + 50
              endTurnButton.Left<- (Array.last buttons).Left - 50
 
-             let pb = new PictureBox()
-             pb.Image <- Image.FromFile("hatteland.png")
-             pb.SizeMode <- PictureBoxSizeMode.AutoSize
+             let pb = new PictureBox(Image=Image.FromFile("hatteland2.png"), SizeMode=PictureBoxSizeMode.AutoSize)
+             //pb.Image <- Image.FromFile("hatteland.png")
+             //pb.SizeMode <- PictureBoxSizeMode.AutoSize
+
              window.Controls.Add(pb)
              window.Controls.AddRange buttons
-             let mutable lst = Array.empty
+             window.Controls.AddRange labels
+//             let mutable lst = Array.empty
 
-             return! finished("splat")
+             //return! finished("splat")
+             let arr = List.toArray lulz
+             return! player(arr)
          | Cancel  -> ts.Cancel()
                       return! cancelling()
          | _       -> failwith("loading: unexpected message")}
 
-and player() =
-  async {disable [startButton; diffButton; clearButton; cancelButton]
+and player(arr) =
+  async {disable [easyButton;hardButton;clearButton;cancelButton]
          let! msg = ev.Receive()
          match msg with
+         | Next -> return! ai(arr)
          | Cancelled | Error | Web  _ ->
                    return! finished("Cancelled")
          | _    ->  failwith("cancelling: unexpected message")}
 
 
-and ai(lst) =
+and ai(arr) =
   async {//ansBox.Text <- "Cancelling"
          
-         disable [startButton; diffButton; clearButton; cancelButton]
+         disable [easyButton;hardButton;clearButton;cancelButton;endTurnButton]
 
-         //let mutable lst = [|1;2;3|]
-         let calc_m lst = Array.fold (fun x m -> x ^^^ m) 0 lst
-         let maxIndex lst = Array.findIndex (fun x -> x = Array.max lst) lst
-         let m = calc_m lst
-         if m <> 0 then
-             for i = 0 to lst.Length-1 do
-                 let tmp = lst.[i] ^^^ m
-                 if tmp < lst.[i] then
-                     lst.[i] <- tmp
-         else
-             let maxI = maxIndex lst
-             lst.[maxI] <- lst.[maxI]-1
+         getOptimal arr
 
          let! msg = ev.Receive()
          match msg with
@@ -168,7 +161,7 @@ and ai(lst) =
 and cancelling() =
   async {//ansBox.Text <- "Cancelling"
          
-         disable [startButton; diffButton; clearButton; cancelButton]
+         disable [easyButton;hardButton;clearButton;cancelButton;endTurnButton]
          let! msg = ev.Receive()
          match msg with
          | Cancelled | Error | Web  _ ->
@@ -178,7 +171,7 @@ and cancelling() =
 and finished(s) =
   async {//ansBox.Text <- s
          
-         disable [startButton; diffButton; cancelButton]
+         disable [easyButton;hardButton;cancelButton;endTurnButton]
          let! msg = ev.Receive()
          match msg with
          | Clear -> return! ready()
@@ -186,8 +179,8 @@ and finished(s) =
 
 // Initialization
 //window.Controls.Add ansBox
-window.Controls.Add startButton
-window.Controls.Add diffButton
+window.Controls.Add easyButton
+window.Controls.Add hardButton
 window.Controls.Add clearButton
 window.Controls.Add cancelButton
 window.Controls.Add endTurnButton
@@ -206,10 +199,11 @@ for i in 0 .. buttons.Length - 1 do
 //printfn "%s" (rnd.ToString())
 //let hat = List.item(rnd.Next(games.Length)) games
 
-startButton.Click.Add (fun _ -> ev.Post (Start (combo.SelectedItem.ToString(), true)))
-diffButton.Click.Add (fun _ -> ev.Post (Start (combo.SelectedItem.ToString(), false)))
+easyButton.Click.Add (fun _ -> ev.Post (Start (combo.SelectedItem.ToString(), true)))
+hardButton.Click.Add (fun _ -> ev.Post (Start (combo.SelectedItem.ToString(), false)))
 clearButton.Click.Add (fun _ -> ev.Post Clear)
 cancelButton.Click.Add (fun _ -> ev.Post Cancel)
+endTurnButton.Click.Add (fun _ -> ev.Post Next)
 
 // Start
 Async.StartImmediate (ready())
@@ -258,6 +252,7 @@ xorlist [1;2;3;4]
 penis (List.sortDescending [1;2;3;4])
 *)
 
+2 ^^^ 2 ^^^ 4 ^^^ 4
 
 
 

@@ -6,3 +6,12 @@ C:\Users\trill\Dropbox\DTU\Semester 03 - Master\02257 Applied Functional Program
 C:\Users\trill\Dropbox\DTU\Semester 03 - Master\02257 Applied Functional Programming\Worspace\Nim\Nim\Nim\bin\Debug\FSharp.Core.xml
 C:\Users\trill\Dropbox\DTU\Semester 03 - Master\02257 Applied Functional Programming\Worspace\Nim\Nim\Nim\obj\Debug\Nim.exe
 C:\Users\trill\Dropbox\DTU\Semester 03 - Master\02257 Applied Functional Programming\Worspace\Nim\Nim\Nim\obj\Debug\Nim.pdb
+C:\Users\trill\Source\Repos\Nim\Nim\bin\Debug\Nim.exe.config
+C:\Users\trill\Source\Repos\Nim\Nim\bin\Debug\Nim.XML
+C:\Users\trill\Source\Repos\Nim\Nim\bin\Debug\Nim.exe
+C:\Users\trill\Source\Repos\Nim\Nim\bin\Debug\Nim.pdb
+C:\Users\trill\Source\Repos\Nim\Nim\bin\Debug\AsyncEventQueue.dll
+C:\Users\trill\Source\Repos\Nim\Nim\bin\Debug\FSharp.Core.dll
+C:\Users\trill\Source\Repos\Nim\Nim\bin\Debug\FSharp.Core.xml
+C:\Users\trill\Source\Repos\Nim\Nim\obj\Debug\Nim.exe
+C:\Users\trill\Source\Repos\Nim\Nim\obj\Debug\Nim.pdb
