@@ -125,7 +125,8 @@ and loading(url) =
              pb.SizeMode <- PictureBoxSizeMode.AutoSize
              window.Controls.Add(pb)
              window.Controls.AddRange buttons
-             
+             let mutable lst = Array.empty
+
              return! finished("splat")
          | Cancel  -> ts.Cancel()
                       return! cancelling()
@@ -140,10 +141,24 @@ and player() =
          | _    ->  failwith("cancelling: unexpected message")}
 
 
-and ai() =
+and ai(lst) =
   async {//ansBox.Text <- "Cancelling"
          
          disable [startButton; diffButton; clearButton; cancelButton]
+
+         //let mutable lst = [|1;2;3|]
+         let calc_m lst = Array.fold (fun x m -> x ^^^ m) 0 lst
+         let maxIndex lst = Array.findIndex (fun x -> x = Array.max lst) lst
+         let m = calc_m lst
+         if m <> 0 then
+             for i = 0 to lst.Length-1 do
+                 let tmp = lst.[i] ^^^ m
+                 if tmp < lst.[i] then
+                     lst.[i] <- tmp
+         else
+             let maxI = maxIndex lst
+             lst.[maxI] <- lst.[maxI]-1
+
          let! msg = ev.Receive()
          match msg with
          | Cancelled | Error | Web  _ ->
@@ -203,18 +218,29 @@ window.WindowState <- FormWindowState.Maximized
 
 //let mutable lst = Array.empty
 
+(*
 let rec xorr = function
-    | (h, lst, m, i) when h ^^^ m = 0 -> lst.[i] <- 0
-    | (h, lst, m, i) -> xorr(lst.[i + 1], lst, m, i + 1)
-    | (h, lst, m, i) -> lst
+    | (h, lst, m, i) when h ^^^ m = 0 -> Array.item i lst
+    | (h, lst, m, i) -> xorr(Array.item i lst, lst, m, i+1)
+    | (h, lst, m, i) when i > Array.length lst-> -1
+*)
 
-// calculates m from a list
-let rec calc_m = function
-    | n::l -> n ^^^ calc_m(l)
-    | _ -> 0
+let mutable lst = [|1;2;3|]
+let calc_m lst = Array.fold (fun x m -> x ^^^ m) 0 lst
+let maxIndex lst = Array.findIndex (fun x -> x = Array.max lst) lst
+let m = calc_m lst
+if m <> 0 then
+    for i = 0 to lst.Length-1 do
+        let tmp = lst.[i] ^^^ m
+        if tmp < lst.[i] then
+            lst.[i] <- tmp
+else
+    printf "maxindex: %d " (maxIndex lst)
+    let maxI = maxIndex lst
+    lst.[maxI] <- lst.[maxI]-1
+lst
 
-let lst = [1;2;3;4]
-xorr(lst.[0], lst, (calc_m lst), 0)
+//lst.[xorr(lst.[0], lst, (calc_m lst), 0)] <- 0
 
 
 //xorr([1;2;4;3], (xorlist [1;2;3;4]))
