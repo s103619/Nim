@@ -55,8 +55,12 @@ let clearButton =
   new Button(Location=Point(350,65),MinimumSize=Size(100,50),
               MaximumSize=Size(100,50),Text="CLEAR")
 
+let endTurnButton =
+  new Button(Location=Point(750,65),MinimumSize=Size(100,50),
+              MaximumSize=Size(100,50),Text="END TURN")
+
 let cancelButton =
-  new Button(Location=Point(500,65),MinimumSize=Size(100,50), MaximumSize=Size(100,50),Text="CANCEL")
+  new Button(Location=Point(500,65),MinimumSize=Size(100,50), MaximumSize=Size(100,50),Text="ABORT")
 
 let combo = new ComboBox(Location=Point(100,35), DataSource=[|"http://www2.compute.dtu.dk/~mire/02257/nim1.game";"http://www2.compute.dtu.dk/~mire/02257/nim2.game";"http://www2.compute.dtu.dk/~mire/02257/nim3.game";"http://www2.compute.dtu.dk/~mire/02257/nim4.game"|], Width=300)
 
@@ -77,20 +81,19 @@ type Message = | Start of string * bool | Clear | Cancel | Web of string | Error
 let ev = AsyncEventQueue()
 let optimal = true
 let rec ready() = 
-  async {
-         //ansBox.Text <- ""
-         Seq.iter(fun x -> window.Controls.Remove x) buttons
+  async {Seq.iter(fun x -> window.Controls.Remove x) buttons
 
          disable [cancelButton]
+         endTurnButton.Visible <- false
          let! msg = ev.Receive()
          match msg with
          | Start (url, diff) -> return! loading(url)
          | Clear     -> return! ready()
          | _         -> failwith("ready: unexpected message")}
   
+// Sets up the board from chosen url
 and loading(url) =
-  async {//ansBox.Text <- "Downloading"
-         use ts = new CancellationTokenSource()
+  async {use ts = new CancellationTokenSource()
 
           // start the load
          Async.StartWithContinuations
@@ -102,28 +105,50 @@ and loading(url) =
               (fun _ -> ev.Post Cancelled),
               ts.Token)
 
-         disable [startButton; diffButton; clearButton]   
+         disable [startButton; diffButton; clearButton]
+         endTurnButton.Visible <- true
          let! msg = ev.Receive()
          match msg with
          | Web html ->
              let l = [ for x in Regex("\d+").Matches(html) -> x.Value ]
              let lulz = List.map (fun x -> if int x <= 9 && int x > 0 then x else string 9) l
-             let ans = System.String.Concat(lulz)
+             //let ans = System.String.Concat(lulz)
 
              let buttonPos text x y = new Button(Text=text, Top=(x+100), Left=y, Size=Size(20,20), BackColor=Color.Aqua)
-
+             
              buttons <- Seq.toArray(seq{ for y in 1..lulz.Length -> (buttonPos "-" (y*50) (1300)) } |> Seq.cast<Control>)
+             endTurnButton.Top<- (Array.last buttons).Top + 50
+             endTurnButton.Left<- (Array.last buttons).Left - 50
+
              let pb = new PictureBox()
              pb.Image <- Image.FromFile("hatteland.png")
              pb.SizeMode <- PictureBoxSizeMode.AutoSize
              window.Controls.Add(pb)
              window.Controls.AddRange buttons
-
-             return! finished(ans)
-         | Error   -> return! finished("Error")
+             
+             return! finished("splat")
          | Cancel  -> ts.Cancel()
                       return! cancelling()
          | _       -> failwith("loading: unexpected message")}
+
+and player() =
+  async {disable [startButton; diffButton; clearButton; cancelButton]
+         let! msg = ev.Receive()
+         match msg with
+         | Cancelled | Error | Web  _ ->
+                   return! finished("Cancelled")
+         | _    ->  failwith("cancelling: unexpected message")}
+
+
+and ai() =
+  async {//ansBox.Text <- "Cancelling"
+         
+         disable [startButton; diffButton; clearButton; cancelButton]
+         let! msg = ev.Receive()
+         match msg with
+         | Cancelled | Error | Web  _ ->
+                   return! finished("Cancelled")
+         | _    ->  failwith("cancelling: unexpected message")}
 
 and cancelling() =
   async {//ansBox.Text <- "Cancelling"
@@ -150,6 +175,7 @@ window.Controls.Add startButton
 window.Controls.Add diffButton
 window.Controls.Add clearButton
 window.Controls.Add cancelButton
+window.Controls.Add endTurnButton
 window.Controls.Add combo
 
 (*
@@ -160,10 +186,10 @@ for i in 0 .. buttons.Length - 1 do
     for i in 0 .. array1.Length - 1 do
         Array.set array1 i (i.ToString())
 *)
-let games = ["http://www2.compute.dtu.dk/~mire/02257/nim1.game";"http://www2.compute.dtu.dk/~mire/02257/nim2.game";"http://www2.compute.dtu.dk/~mire/02257/nim3.game";"http://www2.compute.dtu.dk/~mire/02257/nim4.game"]
-let rnd = System.Random()
-printfn "%s" (rnd.ToString())
-let hat = List.item(rnd.Next(games.Length)) games
+//let games = ["http://www2.compute.dtu.dk/~mire/02257/nim1.game";"http://www2.compute.dtu.dk/~mire/02257/nim2.game";"http://www2.compute.dtu.dk/~mire/02257/nim3.game";"http://www2.compute.dtu.dk/~mire/02257/nim4.game"]
+//let rnd = System.Random()
+//printfn "%s" (rnd.ToString())
+//let hat = List.item(rnd.Next(games.Length)) games
 
 startButton.Click.Add (fun _ -> ev.Post (Start (combo.SelectedItem.ToString(), true)))
 diffButton.Click.Add (fun _ -> ev.Post (Start (combo.SelectedItem.ToString(), false)))
@@ -174,4 +200,53 @@ cancelButton.Click.Add (fun _ -> ev.Post Cancel)
 Async.StartImmediate (ready())
 window.Show()
 window.WindowState <- FormWindowState.Maximized
+
+//let mutable lst = Array.empty
+
+let rec xorr = function
+    | (h, lst, m, i) when h ^^^ m = 0 -> lst.[i] <- 0
+    | (h, lst, m, i) -> xorr(lst.[i + 1], lst, m, i + 1)
+    | (h, lst, m, i) -> lst
+
+// calculates m from a list
+let rec calc_m = function
+    | n::l -> n ^^^ calc_m(l)
+    | _ -> 0
+
+let lst = [1;2;3;4]
+xorr(lst.[0], lst, (calc_m lst), 0)
+
+
+//xorr([1;2;4;3], (xorlist [1;2;3;4]))
+(*
+let rec pik = function
+    | l when xorlist(l) <> 0 -> pik (penis l)
+    | _ -> 0
+
+List.filter (fun x -> x <> List.max [1;2;3;4]) 
+
+xorlist [1;2;3;4]
+
+4 ^^^ 4
+
+penis (List.sortDescending [1;2;3;4])
+*)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
