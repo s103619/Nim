@@ -1,7 +1,4 @@
-﻿// Code from Hansen and Rischel: Functional Programming using F#     1       6/12 2012
-// Chapter 13: Asynchronous and parallel computations.          Revised MRH 25/11 2013 
-// Code from Section 13.5: 13.5 Reactive programs.
-// Prelude
+﻿// Prelude
 open System 
 open System.Net 
 open System.Threading 
@@ -30,6 +27,8 @@ let endTurnButton = new Button(Location=Point(750,65),MinimumSize=Size(100,50), 
 
 let cancelButton = new Button(Location=Point(500,65),MinimumSize=Size(100,50), MaximumSize=Size(100,50),Text="ABORT")
 
+let label = new Label(Text="", Top=300, Left=200, Visible=false)
+
 let combo = new ComboBox(Location=Point(100,35), DataSource=[|"http://www2.compute.dtu.dk/~mire/02257/nim1.game";"http://www2.compute.dtu.dk/~mire/02257/nim2.game";"http://www2.compute.dtu.dk/~mire/02257/nim3.game";"http://www2.compute.dtu.dk/~mire/02257/nim4.game"|], Width=300)
 
 let mutable buttons = Array.empty
@@ -41,6 +40,10 @@ let addMatches (arr:int list) =
             for x in 1..arr.[i-1] do
                 yield new PictureBox(Image=Image.FromFile("hatteland2.png"), Top=(i*50+75), Left=(350-(x*10)), Width=5)
     } |> Seq.cast<Control>)
+
+let changeLabel s b =
+    label.Text <- s
+    label.Visible <- b
 
 let addButtons (arr:int list) = 
     Seq.toArray(seq{ 
@@ -62,18 +65,6 @@ let getOptimal arr =
         arr.[maxI] <- arr.[maxI]-1
     arr
 
-(*
-let getRandom (arr:int array) = 
-    let mutable lort = true
-    let h = rnd.Next(arr.Length-1)
-    while lort do
-        if arr.[h] = 0 then 
-            lort <- false
-        else 
-            h = rnd.Next(arr.Length-1)
-    arr.[h]
-*)
-
 let subtract (r, arr:int array) = 
     arr.[r] <- arr.[r] - rnd.Next(1, arr.[r])
     arr
@@ -87,6 +78,14 @@ let disable bs =
         b.Enabled  <- true
     for (b:Button) in bs do 
         b.Enabled  <- false
+
+let checkGameState arr = (Array.sum arr) = 0
+
+let updateBoard arr = 
+    Seq.iter(fun x -> window.Controls.Remove x) matches
+    matches <- addMatches (Array.toList arr)
+    window.Controls.AddRange matches
+
 
 // An enumeration of the possible events 
 type Message = | Start of string * bool | Next | Clear | Cancel | Web of string | Error | Cancelled 
@@ -147,6 +146,12 @@ and loading(url, diff) =
 
 and player(arr) =
   async {disable [easyButton;hardButton;clearButton;cancelButton]
+
+         updateBoard arr
+
+         if checkGameState arr then
+            return! finished("lose")
+
          let! msg = ev.Receive()
          match msg with
          | Next -> return! ai(arr)
@@ -157,9 +162,11 @@ and player(arr) =
 
 and ai(arr) =
   async {disable [easyButton;hardButton;clearButton;cancelButton;endTurnButton]
-         Seq.iter(fun x -> window.Controls.Remove x) matches
-         matches <- addMatches (Array.toList arr)
-         window.Controls.AddRange matches
+
+         if checkGameState arr then
+            return! finished("win")
+
+         updateBoard arr
 
          printfn "AI TURN:"
 //         let arr = getOptimal arr
@@ -167,6 +174,7 @@ and ai(arr) =
 
          for a in newArr do
             printf "%d " a
+            
 
          return! player(newArr)}
 
@@ -180,6 +188,11 @@ and cancelling() =
 
 and finished(s) =
   async {disable [easyButton;hardButton;cancelButton;endTurnButton]
+         if s.Contains "win" then
+            changeLabel "You won. Good for you!" true
+         else
+            changeLabel "YOU LOSE, SUCKER!" true
+         
          let! msg = ev.Receive()
          match msg with
          | Clear -> return! ready()
@@ -193,6 +206,7 @@ window.Controls.Add clearButton
 window.Controls.Add cancelButton
 window.Controls.Add endTurnButton
 window.Controls.Add combo
+window.Controls.Add label
 
 easyButton.Click.Add (fun _ -> ev.Post (Start (combo.SelectedItem.ToString(), false)))
 hardButton.Click.Add (fun _ -> ev.Post (Start (combo.SelectedItem.ToString(), true)))
