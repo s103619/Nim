@@ -57,6 +57,8 @@
     <Compile Include="AsyncEventQueue.fs" />
     <Compile Include="Program.fsx" />
     <Content Include="Program2.fsx" />
+    <Compile Include="GameLogic.fs" />
+    <None Include="GUI.fsx" />
   </ItemGroup>
   <PropertyGroup>
     <MinimumVisualStudioVersion Condition="'$(MinimumVisualStudioVersion)' == ''">11</MinimumVisualStudioVersion>
