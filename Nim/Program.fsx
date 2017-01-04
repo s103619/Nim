@@ -1,5 +1,4 @@
-﻿// Prelude
-open System 
+﻿open System 
 open System.Net 
 open System.Threading 
 open System.Windows.Forms 
@@ -11,11 +10,16 @@ System.IO.Directory.SetCurrentDirectory __SOURCE_DIRECTORY__;;
 #r @"AsyncEventQueue.dll"
 open AsyncEventQueue
 
+
+// An enumeration of the possible events 
+type Message = | Start of string * bool | Next | Clear | Cancel | PlayerTurn of int | Web of string | Error | Cancelled 
+
+// The dialogue automaton 
+let ev = AsyncEventQueue()
+
 // The window part
 let window = new Form(Text="Nim", Size=Size(500, 600))
 let rnd = System.Random()
-
-//let ansBox = new TextBox(Location=Point(150,150),Size=Size(200,25))
 
 let easyButton = new Button(Location=Point(50,65),MinimumSize=Size(100,50), MaximumSize=Size(100,50),Text="EASY")
 
@@ -31,11 +35,14 @@ let label = new Label(Text="", Top=300, Left=200, Visible=false)
 
 //let loser = new PictureBox(Image=Image.FromFile("loser.jpg"), Top=(120), Left=(50), Width=700, Height=700)
 
+//let winner = new PictureBox(Image=Image.FromFile("winner.jpg"), Top=(120), Left=(50), Width=700, Height=700)
+
 let combo = new ComboBox(Location=Point(100,35), DataSource=[|"http://www2.compute.dtu.dk/~mire/02257/nim1.game";"http://www2.compute.dtu.dk/~mire/02257/nim2.game";"http://www2.compute.dtu.dk/~mire/02257/nim3.game";"http://www2.compute.dtu.dk/~mire/02257/nim4.game"|], Width=300)
 
 let mutable buttons = Array.empty
 let mutable matches = Array.empty
 let mutable warned = false
+let mutable optimal = true
 
 let addMatches (arr:int array) = 
     Seq.toArray(seq{
@@ -45,7 +52,6 @@ let addMatches (arr:int array) =
     } |> Seq.cast<Control>)
 
 let changeLabel s b =
-//    loser.Visible <- b
     label.Text <- s
     label.Visible <- b
 
@@ -54,13 +60,10 @@ let btnClick (arr:int array) y = arr.[y] <- arr.[y] - 1
 let addButtons (arr:int array) = 
     Seq.toArray(seq{ 
         for y in 1..arr.Length do
-            let btn = new Button(Text="-", Top=(y*50+100), Left=400, Size=Size(20,20), BackColor=Color.Aqua)
-            btn.Click.Add (fun _ -> btnClick arr y)
+            let btn = new Button(Text="-", Top=(y*50+100), Left=400, Size=Size(20,20), BackColor=Color.LightGreen)
+            btn.Click.Add (fun _ -> ev.Post (PlayerTurn (y-1)))
             yield btn
     } |> Seq.cast<Control>)
-
-let mutable optimal = true
-
 
 let getOptimal arr =
     let calc_m arr = Array.fold (fun x m -> x ^^^ m) 0 arr
@@ -96,13 +99,6 @@ let updateBoard arr =
     matches <- addMatches (arr)
     window.Controls.AddRange matches
 
-// An enumeration of the possible events 
-type Message = | Start of string * bool | Next | Clear | Cancel | Web of string | Error | Cancelled 
-
-//exception UnexpectedMessage
-
-// The dialogue automaton 
-let ev = AsyncEventQueue()
 let rec ready() = 
   async {Seq.iter(fun x -> window.Controls.Remove x) buttons
          Seq.iter(fun x -> window.Controls.Remove x) matches
@@ -138,7 +134,7 @@ and loading(url, diff) =
          match msg with
          | Web html ->
              let arr = Array.map (fun x -> if x <= 9 && x > 0 then x else 9) [| for x in Regex("\d+").Matches(html) -> int x.Value |]
-             //let arr = [1;2;3;4]
+
              buttons <- addButtons arr
              matches <- addMatches arr
 
@@ -148,7 +144,6 @@ and loading(url, diff) =
              window.Controls.AddRange matches
              window.Controls.AddRange buttons
 
-             //return! finished("splat")
              return! player(arr)
          | Cancel  -> ts.Cancel()
                       return! cancelling()
@@ -164,14 +159,28 @@ and player(arr) =
 
          let! msg = ev.Receive()
          match msg with
+         | PlayerTurn(i) -> return! turn(arr, i)
          | Next -> return! ai(arr)
          | Cancelled | Error | Web  _ ->
                    return! finished("Cancelled")
          | _    ->  failwith("cancelling: unexpected message")}
 
+and turn(arr, i) =
+  async {disable [easyButton;hardButton;clearButton;cancelButton]
+         
+         for a in 0..buttons.Length-1 do
+            if a <> i then
+                buttons.[a].Enabled <- false
+                buttons.[a].BackColor <- Color.Red
+
+         return! player(arr)}
+
 
 and ai(arr) =
   async {disable [easyButton;hardButton;clearButton;cancelButton;endTurnButton]
+         for a in 0..buttons.Length-1 do
+            buttons.[a].Enabled <- true
+            buttons.[a].BackColor <- Color.LightGreen
 
          if checkGameState arr then
             return! finished("win")
@@ -202,20 +211,16 @@ and finished(s) =
          | _     ->  failwith("finished: unexpected message")}
 
 // Initialization
-//window.Controls.Add ansBox
 window.Controls.Add easyButton
 window.Controls.Add hardButton
 window.Controls.Add clearButton
-//window.Controls.Add cancelButton
 window.Controls.Add endTurnButton
 window.Controls.Add combo
 window.Controls.Add label
-//window.Controls.Add loser
 
 easyButton.Click.Add (fun _ -> ev.Post (Start (combo.SelectedItem.ToString(), false)))
 hardButton.Click.Add (fun _ -> ev.Post (Start (combo.SelectedItem.ToString(), true)))
 clearButton.Click.Add (fun _ -> ev.Post Clear)
-//cancelButton.Click.Add (fun _ -> ev.Post Cancel)
 endTurnButton.Click.Add (fun _ -> ev.Post Next)
 
 // Start
