@@ -1,8 +1,6 @@
 ﻿// Code from Hansen and Rischel: Functional Programming using F#     1       6/12 2012
 // Chapter 13: Asynchronous and parallel computations.          Revised MRH 25/11 2013 
 // Code from Section 13.5: 13.5 Reactive programs.
-
-
 // Prelude
 open System 
 open System.Net 
@@ -18,47 +16,68 @@ open AsyncEventQueue
 
 // The window part
 let window = new Form(Text="Nim", Size=Size(500, 600))
+let rnd = System.Random()
 
 //let ansBox = new TextBox(Location=Point(150,150),Size=Size(200,25))
 
-let easyButton = new Button(Location=Point(50,65),MinimumSize=Size(100,50),
-              MaximumSize=Size(100,50),Text="EASY")
+let easyButton = new Button(Location=Point(50,65),MinimumSize=Size(100,50), MaximumSize=Size(100,50),Text="EASY")
 
-let hardButton =
-  new Button(Location=Point(200,65),MinimumSize=Size(100,50),
-              MaximumSize=Size(100,50),Text="HARD")
+let hardButton = new Button(Location=Point(200,65),MinimumSize=Size(100,50), MaximumSize=Size(100,50),Text="HARD")
 
-let clearButton =
-  new Button(Location=Point(350,65),MinimumSize=Size(100,50),
-              MaximumSize=Size(100,50),Text="CLEAR")
+let clearButton = new Button(Location=Point(350,65),MinimumSize=Size(100,50), MaximumSize=Size(100,50),Text="CLEAR")
 
-let endTurnButton =
-  new Button(Location=Point(750,65),MinimumSize=Size(100,50),
-              MaximumSize=Size(100,50),Text="END TURN")
+let endTurnButton = new Button(Location=Point(750,65),MinimumSize=Size(100,50), MaximumSize=Size(100,50),Text="END TURN")
 
-let cancelButton =
-  new Button(Location=Point(500,65),MinimumSize=Size(100,50), MaximumSize=Size(100,50),Text="ABORT")
+let cancelButton = new Button(Location=Point(500,65),MinimumSize=Size(100,50), MaximumSize=Size(100,50),Text="ABORT")
 
 let combo = new ComboBox(Location=Point(100,35), DataSource=[|"http://www2.compute.dtu.dk/~mire/02257/nim1.game";"http://www2.compute.dtu.dk/~mire/02257/nim2.game";"http://www2.compute.dtu.dk/~mire/02257/nim3.game";"http://www2.compute.dtu.dk/~mire/02257/nim4.game"|], Width=300)
 
-let mutable labels = Array.empty
-
 let mutable buttons = Array.empty
+let mutable matches = Array.empty
+
+let addMatches (arr:int list) = 
+    Seq.toArray(seq{
+        for i in 1..arr.Length do
+            for x in 1..arr.[i-1] do
+                yield new PictureBox(Image=Image.FromFile("hatteland2.png"), Top=(i*50+75), Left=(350-(x*10)), Width=5)
+    } |> Seq.cast<Control>)
+
+let addButtons (arr:int list) = 
+    Seq.toArray(seq{ 
+        for y in 1..arr.Length do
+            yield new Button(Text="-", Top=(y*50+100), Left=400, Size=Size(20,20), BackColor=Color.Aqua)
+    } |> Seq.cast<Control>)
+
 let mutable optimal = true
 
 let getOptimal arr =
     let calc_m arr = Array.fold (fun x m -> x ^^^ m) 0 arr
-    let maxIndex arr = Array.findIndex (fun x -> x = Array.max arr) arr
     let m = calc_m arr
+    printfn "m: %d" m
     if m <> 0 then
-        for i = 0 to arr.Length-1 do
-            let tmp = arr.[i] ^^^ m
-            if tmp < arr.[i] then
-                arr.[i] <- tmp
+        let u = Array.findIndex (fun x -> x ^^^ m < x) arr
+        arr.[u] <- arr.[u] ^^^ m
     else
-        let maxI = maxIndex arr
+        let maxI = Array.findIndex (fun x -> x = Array.max arr) arr
         arr.[maxI] <- arr.[maxI]-1
+    arr
 
+(*
+let getRandom (arr:int array) = 
+    let mutable lort = true
+    let h = rnd.Next(arr.Length-1)
+    while lort do
+        if arr.[h] = 0 then 
+            lort <- false
+        else 
+            h = rnd.Next(arr.Length-1)
+    arr.[h]
+*)
+
+let rec getRandom = function
+    | (r, arr:int array) when arr.[r] = 0 -> getRandom(rnd.Next(1, arr.Length-1), arr)
+    | (r, arr:int array) -> arr.[r]
+    
 
 let disable bs = 
     for b in [easyButton;clearButton;cancelButton;hardButton;endTurnButton] do 
@@ -75,7 +94,7 @@ type Message = | Start of string * bool | Next | Clear | Cancel | Web of string 
 let ev = AsyncEventQueue()
 let rec ready() = 
   async {Seq.iter(fun x -> window.Controls.Remove x) buttons
-         Seq.iter(fun x -> window.Controls.Remove x) labels
+         Seq.iter(fun x -> window.Controls.Remove x) matches
 
          disable [cancelButton]
          endTurnButton.Visible <- false
@@ -106,26 +125,19 @@ and loading(url, diff) =
          let! msg = ev.Receive()
          match msg with
          | Web html ->
-             let lulz = List.map (fun x -> if x <= 9 && x > 0 then x else 9) [ for x in Regex("\d+").Matches(html) -> int x.Value ]
-
-             let buttonPos text x y = new Button(Text=text, Top=(x+100), Left=y, Size=Size(20,20), BackColor=Color.Aqua)
-             let labelPos text x y = new Label(Text=text, Top=(x+100), Left=y, AutoSize=true)
-             
-             buttons <- Seq.toArray(seq{ for y in 1..lulz.Length -> (buttonPos "-" (y*50) (400)) } |> Seq.cast<Control>)
-             labels <- Seq.toArray(seq{ for y in 1..lulz.Length -> (labelPos (string lulz.[y-1]) (y*50) (350)) } |> Seq.cast<Control>)
+             //let arr = List.map (fun x -> if x <= 9 && x > 0 then x else 9) [ for x in Regex("\d+").Matches(html) -> int x.Value ]
+             let arr = [1;2;3;4]
+             buttons <- addButtons arr
+             matches <- addMatches arr
 
              endTurnButton.Top<- (Array.last buttons).Top + 50
              endTurnButton.Left<- (Array.last buttons).Left - 50
 
-             let pb = new PictureBox(Image=Image.FromFile("hatteland2.png"), SizeMode=PictureBoxSizeMode.AutoSize)
-
-             window.Controls.Add(pb)
+             window.Controls.AddRange matches
              window.Controls.AddRange buttons
-             window.Controls.AddRange labels
 
              //return! finished("splat")
-             let arr = List.toArray lulz
-             return! player(arr)
+             return! player(List.toArray arr)
          | Cancel  -> ts.Cancel()
                       return! cancelling()
          | _       -> failwith("loading: unexpected message")}
@@ -142,17 +154,18 @@ and player(arr) =
 
 and ai(arr) =
   async {disable [easyButton;hardButton;clearButton;cancelButton;endTurnButton]
-         printfn "AI TURN:"
+         Seq.iter(fun x -> window.Controls.Remove x) matches
+         matches <- addMatches (Array.toList arr)
+         window.Controls.AddRange matches
 
-         if optimal then 
-             getOptimal arr
-         else
-             printf "random move!"
-                   
-         for a in arr do
+         printfn "AI TURN:"
+//         let arr = getOptimal arr
+         let newArr = if optimal then getOptimal arr else getRandom(rnd.Next(1, arr.Length-1), arr)
+
+         for a in newArr do
             printf "%d " a
 
-         return! player(arr)}
+         return! player(newArr)}
 
 and cancelling() =
   async {disable [easyButton;hardButton;clearButton;cancelButton;endTurnButton]
@@ -178,8 +191,8 @@ window.Controls.Add cancelButton
 window.Controls.Add endTurnButton
 window.Controls.Add combo
 
-easyButton.Click.Add (fun _ -> ev.Post (Start (combo.SelectedItem.ToString(), true)))
-hardButton.Click.Add (fun _ -> ev.Post (Start (combo.SelectedItem.ToString(), false)))
+easyButton.Click.Add (fun _ -> ev.Post (Start (combo.SelectedItem.ToString(), false)))
+hardButton.Click.Add (fun _ -> ev.Post (Start (combo.SelectedItem.ToString(), true)))
 clearButton.Click.Add (fun _ -> ev.Post Clear)
 cancelButton.Click.Add (fun _ -> ev.Post Cancel)
 endTurnButton.Click.Add (fun _ -> ev.Post Next)
