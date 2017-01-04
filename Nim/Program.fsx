@@ -29,12 +29,15 @@ let cancelButton = new Button(Location=Point(500,65),MinimumSize=Size(100,50), M
 
 let label = new Label(Text="", Top=300, Left=200, Visible=false)
 
+//let loser = new PictureBox(Image=Image.FromFile("loser.jpg"), Top=(120), Left=(50), Width=700, Height=700)
+
 let combo = new ComboBox(Location=Point(100,35), DataSource=[|"http://www2.compute.dtu.dk/~mire/02257/nim1.game";"http://www2.compute.dtu.dk/~mire/02257/nim2.game";"http://www2.compute.dtu.dk/~mire/02257/nim3.game";"http://www2.compute.dtu.dk/~mire/02257/nim4.game"|], Width=300)
 
 let mutable buttons = Array.empty
 let mutable matches = Array.empty
+let mutable warned = false
 
-let addMatches (arr:int list) = 
+let addMatches (arr:int array) = 
     Seq.toArray(seq{
         for i in 1..arr.Length do
             for x in 1..arr.[i-1] do
@@ -42,16 +45,22 @@ let addMatches (arr:int list) =
     } |> Seq.cast<Control>)
 
 let changeLabel s b =
+//    loser.Visible <- b
     label.Text <- s
     label.Visible <- b
 
-let addButtons (arr:int list) = 
+let btnClick (arr:int array) y = arr.[y] <- arr.[y] - 1
+
+let addButtons (arr:int array) = 
     Seq.toArray(seq{ 
         for y in 1..arr.Length do
-            yield new Button(Text="-", Top=(y*50+100), Left=400, Size=Size(20,20), BackColor=Color.Aqua)
+            let btn = new Button(Text="-", Top=(y*50+100), Left=400, Size=Size(20,20), BackColor=Color.Aqua)
+            btn.Click.Add (fun _ -> btnClick arr y)
+            yield btn
     } |> Seq.cast<Control>)
 
 let mutable optimal = true
+
 
 let getOptimal arr =
     let calc_m arr = Array.fold (fun x m -> x ^^^ m) 0 arr
@@ -71,7 +80,7 @@ let subtract (r, arr:int array) =
 
 let rec getRandom = function
     | (r, arr:int array) when Array.sum arr = 0 -> arr
-    | (r, arr:int array) when arr.[r] = 0 -> getRandom(rnd.Next(0, arr.Length-1), arr)
+    | (r, arr:int array) when arr.[r] = 0 -> getRandom(rnd.Next(0, arr.Length), arr)
     | (r, arr:int array) -> subtract(r, arr)
 
 let disable bs = 
@@ -84,9 +93,8 @@ let checkGameState arr = (Array.sum arr) = 0
 
 let updateBoard arr = 
     Seq.iter(fun x -> window.Controls.Remove x) matches
-    matches <- addMatches (Array.toList arr)
+    matches <- addMatches (arr)
     window.Controls.AddRange matches
-
 
 // An enumeration of the possible events 
 type Message = | Start of string * bool | Next | Clear | Cancel | Web of string | Error | Cancelled 
@@ -99,9 +107,10 @@ let rec ready() =
   async {Seq.iter(fun x -> window.Controls.Remove x) buttons
          Seq.iter(fun x -> window.Controls.Remove x) matches
 
-         disable [cancelButton]
+         disable [cancelButton;clearButton]
          endTurnButton.Visible <- false
          combo.Enabled <- true
+         label.Visible <- false
          let! msg = ev.Receive()
          match msg with
          | Start (url, diff) -> return! loading(url, diff)
@@ -128,8 +137,8 @@ and loading(url, diff) =
          let! msg = ev.Receive()
          match msg with
          | Web html ->
-             //let arr = List.map (fun x -> if x <= 9 && x > 0 then x else 9) [ for x in Regex("\d+").Matches(html) -> int x.Value ]
-             let arr = [1;2;3;4]
+             let arr = Array.map (fun x -> if x <= 9 && x > 0 then x else 9) [| for x in Regex("\d+").Matches(html) -> int x.Value |]
+             //let arr = [1;2;3;4]
              buttons <- addButtons arr
              matches <- addMatches arr
 
@@ -140,7 +149,7 @@ and loading(url, diff) =
              window.Controls.AddRange buttons
 
              //return! finished("splat")
-             return! player(List.toArray arr)
+             return! player(arr)
          | Cancel  -> ts.Cancel()
                       return! cancelling()
          | _       -> failwith("loading: unexpected message")}
@@ -169,8 +178,7 @@ and ai(arr) =
 
          updateBoard arr
 
-         let newArr = if optimal then getOptimal arr else getRandom(rnd.Next(0, arr.Length-1), arr)
-
+         let newArr = if optimal then getOptimal arr else getRandom(rnd.Next(0, arr.Length), arr)
          return! player(newArr)}
 
 and cancelling() =
@@ -198,15 +206,16 @@ and finished(s) =
 window.Controls.Add easyButton
 window.Controls.Add hardButton
 window.Controls.Add clearButton
-window.Controls.Add cancelButton
+//window.Controls.Add cancelButton
 window.Controls.Add endTurnButton
 window.Controls.Add combo
 window.Controls.Add label
+//window.Controls.Add loser
 
 easyButton.Click.Add (fun _ -> ev.Post (Start (combo.SelectedItem.ToString(), false)))
 hardButton.Click.Add (fun _ -> ev.Post (Start (combo.SelectedItem.ToString(), true)))
 clearButton.Click.Add (fun _ -> ev.Post Clear)
-cancelButton.Click.Add (fun _ -> ev.Post Cancel)
+//cancelButton.Click.Add (fun _ -> ev.Post Cancel)
 endTurnButton.Click.Add (fun _ -> ev.Post Next)
 
 // Start
