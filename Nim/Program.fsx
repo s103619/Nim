@@ -70,7 +70,8 @@ let subtract (r, arr:int array) =
     arr
 
 let rec getRandom = function
-    | (r, arr:int array) when arr.[r] = 0 -> getRandom(rnd.Next(1, arr.Length-1), arr)
+    | (r, arr:int array) when Array.sum arr = 0 -> arr
+    | (r, arr:int array) when arr.[r] = 0 -> getRandom(rnd.Next(0, arr.Length-1), arr)
     | (r, arr:int array) -> subtract(r, arr)
 
 let disable bs = 
@@ -168,13 +169,7 @@ and ai(arr) =
 
          updateBoard arr
 
-         printfn "AI TURN:"
-//         let arr = getOptimal arr
-         let newArr = if optimal then getOptimal arr else getRandom(rnd.Next(1, arr.Length-1), arr)
-
-         for a in newArr do
-            printf "%d " a
-            
+         let newArr = if optimal then getOptimal arr else getRandom(rnd.Next(0, arr.Length-1), arr)
 
          return! player(newArr)}
 
