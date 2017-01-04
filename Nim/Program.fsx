@@ -32,6 +32,7 @@ let endTurnButton = new Button(Location=Point(750,65),MinimumSize=Size(100,50), 
 let cancelButton = new Button(Location=Point(500,65),MinimumSize=Size(100,50), MaximumSize=Size(100,50),Text="ABORT")
 
 let label = new Label(Text="", Top=300, Left=200, Visible=false)
+let yousuckLabel = new Label(Text="You're going to lose...", Top=10, Left=200, Width=200, Visible=false)
 
 //let loser = new PictureBox(Image=Image.FromFile("loser.jpg"), Top=(120), Left=(50), Width=700, Height=700)
 
@@ -144,14 +145,15 @@ and loading(url, diff) =
              window.Controls.AddRange matches
              window.Controls.AddRange buttons
 
-             return! player(arr)
+             return! player(arr, false)
          | Cancel  -> ts.Cancel()
                       return! cancelling()
          | _       -> failwith("loading: unexpected message")}
 
-and player(arr) =
-  async {disable [easyButton;hardButton;clearButton;cancelButton]
-
+and player(arr, t) =
+  async {disable [easyButton;hardButton;clearButton;cancelButton;endTurnButton]
+         if t then
+            endTurnButton.Enabled <- true
          updateBoard arr
 
          if checkGameState arr then
@@ -172,12 +174,19 @@ and turn(arr, i) =
             if a <> i then
                 buttons.[a].Enabled <- false
                 buttons.[a].BackColor <- Color.Red
-
-         return! player(arr)}
+         let newArr = 
+            if arr.[i] > 0 then
+                arr.[i] <- arr.[i] - 1
+            arr
+         return! player(newArr, true)}
 
 
 and ai(arr) =
   async {disable [easyButton;hardButton;clearButton;cancelButton;endTurnButton]
+         if Array.fold (fun x m -> x ^^^ m) 0 arr <> 0 && not warned && optimal then
+            yousuckLabel.Visible <- true
+            warned <- false
+
          for a in 0..buttons.Length-1 do
             buttons.[a].Enabled <- true
             buttons.[a].BackColor <- Color.LightGreen
@@ -188,7 +197,7 @@ and ai(arr) =
          updateBoard arr
 
          let newArr = if optimal then getOptimal arr else getRandom(rnd.Next(0, arr.Length), arr)
-         return! player(newArr)}
+         return! player(newArr, false)}
 
 and cancelling() =
   async {disable [easyButton;hardButton;clearButton;cancelButton;endTurnButton]
@@ -217,6 +226,7 @@ window.Controls.Add clearButton
 window.Controls.Add endTurnButton
 window.Controls.Add combo
 window.Controls.Add label
+window.Controls.Add yousuckLabel
 
 easyButton.Click.Add (fun _ -> ev.Post (Start (combo.SelectedItem.ToString(), false)))
 hardButton.Click.Add (fun _ -> ev.Post (Start (combo.SelectedItem.ToString(), true)))
