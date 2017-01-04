@@ -74,10 +74,13 @@ let getRandom (arr:int array) =
     arr.[h]
 *)
 
+let subtract (r, arr:int array) = 
+    arr.[r] <- arr.[r] - rnd.Next(1, arr.[r])
+    arr
+
 let rec getRandom = function
     | (r, arr:int array) when arr.[r] = 0 -> getRandom(rnd.Next(1, arr.Length-1), arr)
-    | (r, arr:int array) -> arr.[r]
-    
+    | (r, arr:int array) -> subtract(r, arr)
 
 let disable bs = 
     for b in [easyButton;clearButton;cancelButton;hardButton;endTurnButton] do 
