@@ -134,8 +134,8 @@ and loading(url, diff) =
          let! msg = ev.Receive()
          match msg with
          | Web html ->
-             let arr = Array.map (fun x -> if x <= 9 && x > 0 then x else 9) [| for x in Regex("\d+").Matches(html) -> int x.Value |]
-
+             //let arr = Array.map (fun x -> if x <= 9 && x > 0 then x else 9) [| for x in Regex("\d+").Matches(html) -> int x.Value |]
+             let arr = [|1;2;3;4|]
              buttons <- addButtons arr
              matches <- addMatches arr
 
@@ -174,11 +174,14 @@ and turn(arr, i) =
             if a <> i then
                 buttons.[a].Enabled <- false
                 buttons.[a].BackColor <- Color.Red
-         let newArr = 
-            if arr.[i] > 0 then
-                arr.[i] <- arr.[i] - 1
-            arr
-         return! player(newArr, true)}
+         if arr.[i] > 0 then
+            arr.[i] <- arr.[i] - 1
+
+         if checkGameState arr then
+            updateBoard arr
+            return! finished("win")
+
+         return! player(arr, true)}
 
 
 and ai(arr) =
@@ -187,16 +190,19 @@ and ai(arr) =
             yousuckLabel.Visible <- true
             warned <- false
 
-         for a in 0..buttons.Length-1 do
-            buttons.[a].Enabled <- true
-            buttons.[a].BackColor <- Color.LightGreen
-
-         if checkGameState arr then
-            return! finished("win")
-
          updateBoard arr
 
          let newArr = if optimal then getOptimal arr else getRandom(rnd.Next(0, arr.Length), arr)
+
+         for a in 0..buttons.Length-1 do
+            if newArr.[a] <> 0 then
+                buttons.[a].Enabled <- true
+                buttons.[a].BackColor <- Color.LightGreen
+            else
+                buttons.[a].Enabled <- false
+                buttons.[a].BackColor <- Color.Red
+                
+
          return! player(newArr, false)}
 
 and cancelling() =
@@ -209,7 +215,7 @@ and cancelling() =
 
 and finished(s) =
   async {disable [easyButton;hardButton;cancelButton;endTurnButton]
-         if s.Contains "win" then
+         if s = "win" then
             changeLabel "You won. Good for you!" true
          else
             changeLabel "YOU LOSE, SUCKER!" true
