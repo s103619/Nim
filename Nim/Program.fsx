@@ -59,6 +59,7 @@ and player(arr, t) =
          GUI.disable [GUI.easyButton;GUI.hardButton;GUI.endTurnButton;GUI.cancelButton]
          GUI.toggleEndTurnBtn t
          GUI.updateBoard arr 
+         //GUI.removeButtons (string 0) (string 0)
          if GameLogic.checkGameState arr then
             return! finished("lose")
          
