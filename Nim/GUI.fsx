@@ -31,12 +31,12 @@ let mutable clearButton = new Button(Location=Point(250,65),MinimumSize=Size(75,
 let mutable endTurnButton = new Button(Location=Point(750,65),MinimumSize=Size(100,50), MaximumSize=Size(100,50),Text="END TURN", Visible=false)
 let mutable cancelButton = new Button(Location=Point(350,65), MinimumSize=Size(75,50), MaximumSize=Size(75,50), Text="CANCEL")
 let mutable ans = new TextBox(Location = Point(125, 10), Text = "http://", Width = 250)
-let mutable teaseLabel = new Label(Text="You're going to lose...", Top=400, Left=200, Width=200, Visible=false)
+let mutable teaseLabel = new Label(Text="You're going to lose...", Top=600, Left=200, Width=200, Visible=false)
 let mutable finishedLabel = new Label(Text="Download cancelled", Top=300, Left=200, Width=200, Visible=false)
 let mutable combo = new ComboBox(Location=Point(100,35), DataSource=[|"http://www2.compute.dtu.dk/~mire/02257/nim1.game";"http://www2.compute.dtu.dk/~mire/02257/nim2.game";"http://www2.compute.dtu.dk/~mire/02257/nim3.game";"http://www2.compute.dtu.dk/~mire/02257/nim4.game"; "Use url in box above"|], Width=300)
 let mutable loser = new PictureBox(Image=Image.FromFile("loser.jpg"), Top=(120), Left=(50), Width=700, Height=700)
 let mutable winner = new PictureBox(Image=Image.FromFile("winner.jpg"), Top=(120), Left=(15), Width=700, Height=700)
-let mutable window = new Form(Text="Nim", Size=Size(500, 600))
+let mutable window = new Form(Text="Nim", Size=Size(500, 600), AutoScroll=true)
     
 let initGUI (ev:AsyncEventQueue<AsyncEventQueue.Events>) =
     window.Controls.Add easyButton
@@ -99,6 +99,8 @@ let toggleButtonsAi (arr:int array) =
     
 let checkTease arr optimal = 
     if Array.fold (fun x m -> x ^^^ m) 0 arr <> 0 && not warned && optimal then
+            teaseLabel.Top <- (Array.last buttons).Top + 50
+            teaseLabel.Left <- 200
             teaseLabel.Visible <- true
             warned <- true
     else
@@ -113,6 +115,7 @@ let endofgameLabel(s)=
 let clearBoard () = 
     Seq.iter(fun y ->  window.Controls.Remove y) buttons
     Seq.iter(fun y ->  window.Controls.Remove y) matches
+    teaseLabel.Visible <- false
     winner.Visible <- false
     loser.Visible <- false
     finishedLabel.Visible <- false
