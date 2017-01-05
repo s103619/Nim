@@ -2,6 +2,8 @@
 
 let rnd = System.Random()
 
+type Heap = int array
+
 let getOptimal arr =
     let calc_m arr = Array.fold (fun x m -> x ^^^ m) 0 arr
     let m = calc_m arr
@@ -13,17 +15,17 @@ let getOptimal arr =
         arr.[maxI] <- arr.[maxI]-1
     arr
 
-let subtract (r, arr:int array) = 
+let subtract (r, arr:Heap) = 
     arr.[r] <- arr.[r] - rnd.Next(1, arr.[r])
     arr
 
-let makeMove (arr:int array) i = 
+let makeMove (arr:Heap) i = 
     if arr.[i] > 0 then arr.[i] <- arr.[i] - 1 
     arr
 
 let rec getRandom = function
-    | (r, arr:int array) when Array.sum arr = 0 -> arr
-    | (r, arr:int array) when arr.[r] = 0 -> getRandom(rnd.Next(0, arr.Length), arr)
-    | (r, arr:int array) -> subtract(r, arr)
+    | (r, arr:Heap) when Array.sum arr = 0 -> arr
+    | (r, arr:Heap) when arr.[r] = 0 -> getRandom(rnd.Next(0, arr.Length), arr)
+    | (r, arr:Heap) -> subtract(r, arr)
 
 let checkGameState arr = (Array.sum arr) = 0
