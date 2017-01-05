@@ -73,6 +73,7 @@ and turn(arr, i) =
   async {
          GUI.disable [GUI.easyButton;GUI.hardButton;GUI.clearButton;GUI.cancelButton]
          GUI.toggleButtons i
+         printf "NAME: %s" GUI.matches.[0].Name
          let newArr = GameLogic.makeMove arr i
          if checkGameState newArr then
             GUI.updateBoard newArr
@@ -82,6 +83,7 @@ and turn(arr, i) =
 and ai(arr) =
   async {
          GUI.disable [GUI.easyButton;GUI.hardButton;GUI.clearButton;GUI.endTurnButton;GUI.cancelButton]
+         do! Async.Sleep(rnd.Next(1, 5) * 500)  // simulate the AI thinking
          GUI.checkTease arr optimal
          GUI.updateBoard arr
          let newArr = if optimal then GameLogic.getOptimal arr else GameLogic.getRandom(rnd.Next(0, arr.Length), arr)

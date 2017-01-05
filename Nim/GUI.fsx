@@ -14,7 +14,8 @@ let addMatches (arr:int array) =
     Seq.toArray(seq{
         for i in 1..arr.Length do
             for x in 1..arr.[i-1] do
-                yield new PictureBox(Image=Image.FromFile("hatteland2.png"), Top=(i*50+75), Left=(350-(x*10)), Width=5)
+                printfn "%d, %d" i x
+                yield new PictureBox(Image=Image.FromFile("hatteland2.png"), Top=(i*50+75), Left=(350-(x*10)), Width=5, Name=(string (i-1) + "_" + string (x-1)))
     } |> Seq.cast<Control>)
 
 let addButtons (arr:int array) (ev:AsyncEventQueue<AsyncEventQueue.Events>) = 
@@ -24,6 +25,10 @@ let addButtons (arr:int array) (ev:AsyncEventQueue<AsyncEventQueue.Events>) =
             btn.Click.Add (fun _ -> ev.Post (PlayerTurn (y-1)))
             yield btn
     } |> Seq.cast<Control>)
+
+let chunk (m:Control array) = 
+    printfn "AHAHTOIAET"
+    printf "NAME: %s" m.[0].Name
 
 let mutable easyButton = new Button(Location=Point(50,65),MinimumSize=Size(75,50), MaximumSize=Size(75,50),Text="EASY")
 let mutable hardButton = new Button(Location=Point(150,65),MinimumSize=Size(75,50), MaximumSize=Size(75,50),Text="HARD")
@@ -63,6 +68,7 @@ let disable bs =
         b.Enabled  <- false
 
 let updateBoard arr = 
+    chunk matches
     Seq.iter(fun y ->  window.Controls.Remove y) matches
     matches <- addMatches arr
     window.Controls.AddRange matches
