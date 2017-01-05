@@ -16,6 +16,7 @@ System.IO.Directory.SetCurrentDirectory __SOURCE_DIRECTORY__;;
 let ev = AsyncEventQueue()
 let mutable optimal = true
 
+// ready : unit -> Async<unit>
 let rec ready() = 
   async {
          GUI.clearBoard()
@@ -26,7 +27,7 @@ let rec ready() =
          | Clear     -> return! ready()
          | _         -> failwith("ready: unexpected message")
   }
-// Sets up the board from chosen url
+// loading : string * bool -> Async<unit>
 and loading(url, diff) =
   async {
          use ts = new CancellationTokenSource()
@@ -54,7 +55,7 @@ and loading(url, diff) =
          | Error -> return! finished("error")
          | _       -> failwith("loading: unexpected message")
   }
-
+// player : Heap * bool -> Async<unit>
 and player(arr, t) =
   async {
          GUI.disable [GUI.easyButton;GUI.hardButton;GUI.endTurnButton;GUI.cancelButton]
@@ -70,6 +71,7 @@ and player(arr, t) =
          | Clear -> return! ready()
          | _    ->  failwith("cancelling: unexpected message")
   }
+// turn : Heap * int -> Async<unit>
 and turn(arr, i) =
   async {
          GUI.disable [GUI.easyButton;GUI.hardButton;GUI.clearButton;GUI.cancelButton]
@@ -80,6 +82,7 @@ and turn(arr, i) =
             return! finished("win")
          return! player(newArr, true)
   }
+// ai : Heap -> Async<unit>
 and ai(arr) =
   async {
          GUI.disable [GUI.easyButton;GUI.hardButton;GUI.clearButton;GUI.endTurnButton;GUI.cancelButton]
@@ -90,6 +93,7 @@ and ai(arr) =
          GUI.toggleButtonsAi newArr
          return! player(newArr, false)
   }
+// finished : string -> Async<unit>
 and finished(s) =
   async {
          GUI.disable [GUI.easyButton;GUI.hardButton;GUI.endTurnButton;GUI.cancelButton]

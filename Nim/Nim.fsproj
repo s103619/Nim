@@ -56,7 +56,6 @@
     <None Include="App.config" />
     <Compile Include="AsyncEventQueue.fs" />
     <Compile Include="Program.fsx" />
-    <Content Include="Program2.fsx" />
     <Compile Include="GameLogic.fs" />
     <None Include="GUI.fsx" />
   </ItemGroup>

@@ -1,7 +1,7 @@
 ﻿// An asynchronous event queue kindly provided by Don Syme 
 module AsyncEventQueue 
 
-    // An enumeration of the possible events 
+// An enumeration of the possible events 
 type Events = | Start of string * bool | Next | Clear | PlayerTurn of int | Web of string | Error | Cancelled
 
 type AsyncEventQueue<'T>() = 

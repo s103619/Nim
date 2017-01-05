@@ -9,7 +9,8 @@ open System
 let mutable warned = false
 let mutable buttons = Array.empty
 let mutable matches = Array.empty    
-   
+  
+// addMatches : Heap -> Control array
 let addMatches (arr:int array) = 
     Seq.toArray(seq{
         for i in 1..arr.Length do
@@ -17,6 +18,7 @@ let addMatches (arr:int array) =
                 yield new PictureBox(Image=Image.FromFile("hatteland2.png"), Top=(i*50+75), Left=(350-(x*10)), Width=5)
     } |> Seq.cast<Control>)
 
+// addButtons : int array -> AsyncEventQueue -> Control array
 let addButtons (arr:int array) (ev:AsyncEventQueue<AsyncEventQueue.Events>) = 
     Seq.toArray(seq{ 
         for y in 1..arr.Length do
@@ -24,6 +26,7 @@ let addButtons (arr:int array) (ev:AsyncEventQueue<AsyncEventQueue.Events>) =
             btn.Click.Add (fun _ -> ev.Post (PlayerTurn (y-1)))
             yield btn
     } |> Seq.cast<Control>)
+
 
 let mutable easyButton = new Button(Location=Point(50,65),MinimumSize=Size(75,50), MaximumSize=Size(75,50),Text="EASY")
 let mutable hardButton = new Button(Location=Point(150,65),MinimumSize=Size(75,50), MaximumSize=Size(75,50),Text="HARD")
@@ -37,7 +40,8 @@ let mutable combo = new ComboBox(Location=Point(100,35), DataSource=[|"http://ww
 let mutable loser = new PictureBox(Image=Image.FromFile("loser.jpg"), Top=(120), Left=(50), Width=402, Height=400)
 let mutable winner = new PictureBox(Image=Image.FromFile("winner.jpg"), Top=(120), Left=(15), Width=460, Height=326)
 let mutable window = new Form(Text="Nim", Size=Size(500, 600), AutoScroll=true)
-    
+
+// initGUI : AsyncEventQueue -> unit    
 let initGUI (ev:AsyncEventQueue<AsyncEventQueue.Events>) =
     window.Controls.Add easyButton
     window.Controls.Add hardButton
@@ -56,12 +60,14 @@ let initGUI (ev:AsyncEventQueue<AsyncEventQueue.Events>) =
     endTurnButton.Click.Add (fun _ -> ev.Post Next)
     cancelButton.Click.Add (fun _ -> ev.Post Cancelled)
 
+// disable : seq<Button> -> unit
 let disable bs = 
     for b in [ easyButton; clearButton; hardButton; endTurnButton] do 
         b.Enabled  <- true
     for (b:Button) in bs do 
         b.Enabled  <- false
 
+// updateBoard : Heap -> unit
 let updateBoard arr = 
     Seq.iter(fun y ->  window.Controls.Remove y) matches
     matches <- addMatches arr
@@ -73,6 +79,7 @@ let toggleAns b =  ans.Enabled <- b
    
 let toggleEndTurnBtn t =  if t then  endTurnButton.Enabled <- true
 
+// setupBoard : AsyncEventQueue -> Heap -> unit
 let setupBoard ev (arr:(int array))= 
     buttons <- addButtons arr ev
     matches <- addMatches arr
