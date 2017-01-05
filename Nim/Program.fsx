@@ -73,7 +73,6 @@ and turn(arr, i) =
   async {
          GUI.disable [GUI.easyButton;GUI.hardButton;GUI.clearButton;GUI.cancelButton]
          GUI.toggleButtons i
-         printf "NAME: %s" GUI.matches.[0].Name
          let newArr = GameLogic.makeMove arr i
          if checkGameState newArr then
             GUI.updateBoard newArr

@@ -14,7 +14,6 @@ let addMatches (arr:int array) =
     Seq.toArray(seq{
         for i in 1..arr.Length do
             for x in 1..arr.[i-1] do
-                printfn "%d, %d" i x
                 yield new PictureBox(Image=Image.FromFile("hatteland2.png"), Top=(i*50+75), Left=(350-(x*10)), Width=5, Name=(string (i-1) + "_" + string (x-1)))
     } |> Seq.cast<Control>)
 
