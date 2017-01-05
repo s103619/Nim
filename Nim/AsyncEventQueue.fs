@@ -2,7 +2,7 @@
 module AsyncEventQueue 
 
     // An enumeration of the possible events 
-type Message1 = | Start of string * bool | Next | Clear | PlayerTurn of int | Web of string | Error | Cancelled
+type Events = | Start of string * bool | Next | Clear | PlayerTurn of int | Web of string | Error | Cancelled
 
 type AsyncEventQueue<'T>() = 
     let mutable cont = None 

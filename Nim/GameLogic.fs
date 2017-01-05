@@ -1,6 +1,5 @@
 ﻿module GameLogic
 
-let mutable optimal = true
 let rnd = System.Random()
 
 let getOptimal arr =
