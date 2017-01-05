@@ -51,6 +51,7 @@ and loading(url, diff) =
              GUI.setupBoard ev arr
              return! player(arr, false)
          | Cancelled -> return! finished("cancelled")
+         | Error -> return! finished("error")
          | _       -> failwith("loading: unexpected message")
   }
 

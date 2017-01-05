@@ -34,8 +34,8 @@ let mutable ans = new TextBox(Location = Point(125, 10), Text = "http://", Width
 let mutable teaseLabel = new Label(Text="You're going to lose...", Top=600, Left=200, Width=200, Visible=false)
 let mutable finishedLabel = new Label(Text="Download cancelled", Top=300, Left=200, Width=200, Visible=false)
 let mutable combo = new ComboBox(Location=Point(100,35), DataSource=[|"http://www2.compute.dtu.dk/~mire/02257/nim1.game";"http://www2.compute.dtu.dk/~mire/02257/nim2.game";"http://www2.compute.dtu.dk/~mire/02257/nim3.game";"http://www2.compute.dtu.dk/~mire/02257/nim4.game"; "Use url in box above"|], Width=300)
-let mutable loser = new PictureBox(Image=Image.FromFile("loser.jpg"), Top=(120), Left=(50), Width=700, Height=700)
-let mutable winner = new PictureBox(Image=Image.FromFile("winner.jpg"), Top=(120), Left=(15), Width=700, Height=700)
+let mutable loser = new PictureBox(Image=Image.FromFile("loser.jpg"), Top=(120), Left=(50), Width=402, Height=400)
+let mutable winner = new PictureBox(Image=Image.FromFile("winner.jpg"), Top=(120), Left=(15), Width=460, Height=326)
 let mutable window = new Form(Text="Nim", Size=Size(500, 600), AutoScroll=true)
     
 let initGUI (ev:AsyncEventQueue<AsyncEventQueue.Events>) =
@@ -108,13 +108,17 @@ let checkTease arr optimal =
 
 let endofgameLabel(s)=
     endTurnButton.Visible <- false
+    Seq.iter(fun y ->  window.Controls.Remove y) buttons
+    Seq.iter(fun y ->  window.Controls.Remove y) matches
     if s = "cancelled" then finishedLabel.Visible <- true
     elif s = "win" then winner.Visible <- true
+    elif s = "error" then finishedLabel.Visible <- true; finishedLabel.Text <- "Error!"
     else loser.Visible <- true
 
 let clearBoard () = 
     Seq.iter(fun y ->  window.Controls.Remove y) buttons
     Seq.iter(fun y ->  window.Controls.Remove y) matches
+    warned <- false
     teaseLabel.Visible <- false
     winner.Visible <- false
     loser.Visible <- false
